@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User,
+  Mail,
   Lock,
   Eye,
   EyeOff,
@@ -16,6 +17,9 @@ import {
   HelpCircle,
   Volume2,
   VolumeX,
+  ShieldCheck,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import useSound from 'use-sound';
 import girlImg from '../assets/girl.png';
@@ -31,16 +35,21 @@ import {
 import {
   validateUsernameOrEmail,
   validatePassword,
+  validateName,
+  validateConfirmPassword,
   formatSocialProviderName,
 } from '../utils/auth-validation';
+import ClaymorphicSpinner from './ClaymorphicSpinner';
 
 export interface LoginScreenProps {
   gender?: Gender;
+  defaultMode?: 'login' | 'signup';
   onBack?: () => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   gender: propGender,
+  defaultMode = 'login',
   onBack,
 }) => {
   const navigate = useNavigate();
@@ -53,12 +62,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [playChime] = useSound(CHIME_SOUND_URI, { volume: 0.65, soundEnabled });
   const [playSuccess] = useSound(SUCCESS_SOUND_URI, { volume: 0.7, soundEnabled });
 
-  const [identity, setIdentity] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ identity?: string; password?: string }>({});
+  // Mode state: 'login' | 'signup'
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>(defaultMode);
+
+  // Login Form States
+  const [loginIdentity, setLoginIdentity] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginErrors, setLoginErrors] = useState<{ identity?: string; password?: string }>({});
+
+  // Sign Up Form States
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
+  const [signupErrors, setSignupErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+
+  // Shared Action States
   const [isLoading, setIsLoading] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [authSuccess, setAuthSuccess] = useState<{ type: 'login' | 'signup'; user: string } | null>(
+    null
+  );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
 
@@ -87,27 +118,71 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const switchAuthMode = (mode: 'login' | 'signup') => {
+    triggerSound('pop');
+    setAuthMode(mode);
+    setAuthSuccess(null);
+    setLoginErrors({});
+    setSignupErrors({});
+  };
+
+  // Handle Login submission
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     triggerSound('push'); // Play tactile 3D button push sound immediately
 
-    const idValidation = validateUsernameOrEmail(identity);
-    const passValidation = validatePassword(password);
+    const idValidation = validateUsernameOrEmail(loginIdentity);
+    const passValidation = validatePassword(loginPassword);
 
     const newErrors: { identity?: string; password?: string } = {};
     if (!idValidation.valid) newErrors.identity = idValidation.error;
     if (!passValidation.valid) newErrors.password = passValidation.error;
 
-    setErrors(newErrors);
+    setLoginErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
-        setLoginSuccess(true);
+        setAuthSuccess({ type: 'login', user: loginIdentity });
         triggerSound('success'); // Play cheerful celebration jingle
-        showToast(`🎉 Welcome back, ${identity}! Authenticated successfully.`);
-      }, 750);
+        showToast(`🎉 Welcome back, ${loginIdentity}! Authenticated successfully.`);
+      }, 1100);
+    }
+  };
+
+  // Handle Sign Up submission
+  const handleSignupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    triggerSound('push'); // Play tactile 3D button push sound immediately
+
+    const nameVal = validateName(signupName);
+    const emailVal = validateUsernameOrEmail(signupEmail);
+    const passVal = validatePassword(signupPassword);
+    const confirmVal = validateConfirmPassword(signupPassword, signupConfirmPassword);
+
+    const newErrors: {
+      name?: string;
+      email?: string;
+      password?: string;
+      confirmPassword?: string;
+    } = {};
+
+    if (!nameVal.valid) newErrors.name = nameVal.error;
+    if (!emailVal.valid) newErrors.email = emailVal.error;
+    if (!passVal.valid) newErrors.password = passVal.error;
+    if (!confirmVal.valid) newErrors.confirmPassword = confirmVal.error;
+
+    setSignupErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setAuthSuccess({ type: 'signup', user: signupName });
+        triggerSound('success'); // Play cheerful celebration jingle
+        showToast(`✨ Account created! Welcome to ${isGirl ? 'Girls World' : 'Boys World'}, ${signupName}!`);
+      }, 1200);
     }
   };
 
@@ -153,7 +228,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       </div>
 
       {/* Floating Top Control Bar */}
-      <header className="w-full max-w-[420px] mx-auto mb-4 z-30 flex items-center justify-between px-1">
+      <header className="w-full max-w-[420px] mx-auto mb-3 z-30 flex items-center justify-between px-1">
         <button
           onClick={handleBack}
           className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-700 shadow-sm transition-all text-xs font-bold hover:scale-105 active:scale-95 border border-white/60 cursor-pointer"
@@ -240,24 +315,57 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
-          className="w-full bg-[#F8F9FA] rounded-[50px] shadow-2xl shadow-slate-500/20 border border-white/80 pt-16 sm:pt-18 pb-7 px-6 sm:px-7 relative z-10"
+          className="w-full bg-[#F8F9FA] rounded-[50px] shadow-2xl shadow-slate-500/20 border border-white/80 pt-16 sm:pt-18 pb-7 px-6 sm:px-7 relative z-10 overflow-visible"
         >
-          {/* Card Header */}
-          <div className="text-center mb-5">
+          {/* Card Header with Claymorphic Auth Mode Switcher */}
+          <div className="text-center mb-4">
             <h1
               className={`text-2xl sm:text-[26px] font-extrabold tracking-tight font-display leading-tight ${
                 isGirl ? 'text-[#6D28D9]' : 'text-[#1D4ED8]'
               }`}
             >
-              Welcome Back
+              {authMode === 'login' ? 'Welcome Back' : isGirl ? 'Join Girls World' : 'Join Boys World'}
             </h1>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              Login to continue your journey
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">
+              {authMode === 'login' ? 'Login to continue your journey' : 'Create an account to start playing'}
             </p>
+
+            {/* Tactile 3D Clay Mode Switcher Pill */}
+            <div className="inline-flex items-center p-1 mt-3 bg-[#EEF2F6] rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_2px_rgba(255,255,255,0.8)] border border-slate-200/50">
+              <button
+                type="button"
+                onClick={() => switchAuthMode('login')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
+                  authMode === 'login'
+                    ? isGirl
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Log In</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => switchAuthMode('signup')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
+                  authMode === 'signup'
+                    ? isGirl
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Sign Up</span>
+              </button>
+            </div>
           </div>
 
           <AnimatePresence mode="wait">
-            {loginSuccess ? (
+            {authSuccess ? (
               <motion.div
                 key="success"
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -272,20 +380,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 >
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">Login Successful!</h3>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {authSuccess.type === 'login' ? 'Login Successful!' : 'Account Created!'}
+                </h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                  Welcome, <span className="font-bold text-slate-700">{identity}</span>! Your{' '}
-                  {isGirl ? 'Girls' : 'Boys'} session is authenticated.
+                  Welcome, <span className="font-bold text-slate-700">{authSuccess.user}</span>! You
+                  are now connected to the {isGirl ? 'Girls & Kitty' : 'Boys & Puppy'} world.
                 </p>
 
                 <div className="mt-5 flex flex-col gap-2 w-full">
                   <button
                     onClick={() => {
                       triggerSound('pop');
-                      setLoginSuccess(false);
-                      setIdentity('');
-                      setPassword('');
-                      setErrors({});
+                      setAuthSuccess(null);
+                      setLoginIdentity('');
+                      setLoginPassword('');
+                      setSignupName('');
+                      setSignupEmail('');
+                      setSignupPassword('');
+                      setSignupConfirmPassword('');
+                      setLoginErrors({});
+                      setSignupErrors({});
                     }}
                     className={`w-full py-3 px-6 rounded-full text-white font-bold text-xs tracking-wide transition-all cursor-pointer ${
                       isGirl
@@ -293,7 +408,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                         : 'bg-[#3B82F6] hover:bg-[#2563EB] shadow-[0_5px_0_#1D4ED8] active:translate-y-1 active:shadow-none'
                     }`}
                   >
-                    Reset & Try Again
+                    Continue Journey
                   </button>
                   <button
                     onClick={handleBack}
@@ -303,8 +418,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   </button>
                 </div>
               </motion.div>
-            ) : (
-              <form key="form" onSubmit={handleLogin} className="space-y-3.5">
+            ) : authMode === 'login' ? (
+              /* ========================================================
+                  LOGIN FORM
+                 ======================================================== */
+              <motion.form
+                key="login-form"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.25 }}
+                onSubmit={handleLoginSubmit}
+                className="space-y-3"
+              >
                 {/* Pill Username/Email Input */}
                 <div>
                   <div
@@ -312,7 +438,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       isGirl
                         ? 'focus-within:ring-purple-400 focus-within:bg-white focus-within:shadow-md'
                         : 'focus-within:ring-blue-400 focus-within:bg-white focus-within:shadow-md'
-                    } ${errors.identity ? 'ring-2 ring-rose-400' : ''}`}
+                    } ${loginErrors.identity ? 'ring-2 ring-rose-400' : ''}`}
                   >
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
@@ -326,19 +452,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
                     <input
                       type="text"
-                      value={identity}
+                      value={loginIdentity}
                       onChange={(e) => {
-                        setIdentity(e.target.value);
-                        if (errors.identity) setErrors((prev) => ({ ...prev, identity: undefined }));
+                        setLoginIdentity(e.target.value);
+                        if (loginErrors.identity)
+                          setLoginErrors((prev) => ({ ...prev, identity: undefined }));
                       }}
                       placeholder="Email or Username"
                       className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
                     />
                   </div>
-                  {errors.identity && (
+                  {loginErrors.identity && (
                     <p className="text-[11px] text-rose-500 mt-1 ml-4 font-medium flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
-                      <span>{errors.identity}</span>
+                      <span>{loginErrors.identity}</span>
                     </p>
                   )}
                 </div>
@@ -350,7 +477,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       isGirl
                         ? 'focus-within:ring-purple-400 focus-within:bg-white focus-within:shadow-md'
                         : 'focus-within:ring-blue-400 focus-within:bg-white focus-within:shadow-md'
-                    } ${errors.password ? 'ring-2 ring-rose-400' : ''}`}
+                    } ${loginErrors.password ? 'ring-2 ring-rose-400' : ''}`}
                   >
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
@@ -363,11 +490,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     </div>
 
                     <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
+                      type={showLoginPassword ? 'text' : 'password'}
+                      value={loginPassword}
                       onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                        setLoginPassword(e.target.value);
+                        if (loginErrors.password)
+                          setLoginErrors((prev) => ({ ...prev, password: undefined }));
                       }}
                       placeholder="Password"
                       className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
@@ -377,18 +505,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       type="button"
                       onClick={() => {
                         triggerSound('pop');
-                        setShowPassword(!showPassword);
+                        setShowLoginPassword(!showLoginPassword);
                       }}
                       className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors mr-1 cursor-pointer"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {errors.password && (
+                  {loginErrors.password && (
                     <p className="text-[11px] text-rose-500 mt-1 ml-4 font-medium flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
-                      <span>{errors.password}</span>
+                      <span>{loginErrors.password}</span>
                     </p>
                   )}
                 </div>
@@ -408,8 +536,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   </button>
                 </div>
 
-                {/* 3D Push Button: tactile 3D sound on press and disappearing bottom shadow */}
-                <div className="pt-1">
+                {/* 3D Push Button with Claymorphic Loading Spinner Overlay */}
+                <div className="relative pt-1">
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -418,22 +546,55 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       isGirl
                         ? 'bg-[#8B5CF6] hover:bg-[#7C3AED] shadow-[0_5px_0_#6D28D9] active:translate-y-1 active:shadow-none'
                         : 'bg-[#3B82F6] hover:bg-[#2563EB] shadow-[0_5px_0_#1D4ED8] active:translate-y-1 active:shadow-none'
-                    } ${isLoading ? 'opacity-80 cursor-wait' : ''}`}
+                    } ${isLoading ? 'opacity-90 cursor-wait' : ''}`}
                   >
-                    {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <span>Login</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
+                    <div className="flex items-center justify-center gap-2">
+                      <span>Login</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
                   </button>
+
+                  {/* CUSTOM CLAYMORPHIC LOADING SPINNER OVERLAY:
+                      Appears directly over the login button while authentication is in progress. */}
+                  <AnimatePresence>
+                    {isLoading && (
+                      <motion.div
+                        initial={{ scale: 0.9, opacity: 0, y: 2 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: -2 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                        className="absolute inset-0 z-30 flex items-center justify-center rounded-full pointer-events-none"
+                      >
+                        <div
+                          className={`w-full h-full flex items-center justify-center gap-3 px-4 rounded-full backdrop-blur-md shadow-xl ${
+                            isGirl
+                              ? 'bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-600 border border-purple-200/50'
+                              : 'bg-gradient-to-r from-blue-600 via-blue-700 to-sky-600 border border-blue-200/50'
+                          }`}
+                          style={{
+                            boxShadow: isGirl
+                              ? 'inset 2px 2px 4px rgba(255,255,255,0.7), inset -2px -2px 4px rgba(0,0,0,0.25), 0 6px 16px rgba(109,40,217,0.4)'
+                              : 'inset 2px 2px 4px rgba(255,255,255,0.7), inset -2px -2px 4px rgba(0,0,0,0.25), 0 6px 16px rgba(29,78,216,0.4)',
+                          }}
+                        >
+                          <ClaymorphicSpinner size="md" variant="light" />
+                          <div className="flex flex-col text-left">
+                            <span className="text-xs sm:text-sm font-extrabold text-white tracking-wide leading-tight drop-shadow-xs">
+                              Authenticating...
+                            </span>
+                            <span className="text-[10px] text-white/80 font-medium">
+                              {isGirl ? 'Connecting with Mimi 🐱' : 'Connecting with Buddy 🐶'}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Social Logins */}
-                <div className="pt-2">
-                  <div className="relative flex items-center justify-center my-2.5">
+                <div className="pt-1.5">
+                  <div className="relative flex items-center justify-center my-2">
                     <div className="border-t border-slate-200 w-full" />
                     <span className="bg-[#F8F9FA] px-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">
                       or continue with
@@ -441,15 +602,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <div className="border-t border-slate-200 w-full" />
                   </div>
 
-                  <div className="flex items-center justify-center gap-3.5 pt-1">
+                  <div className="flex items-center justify-center gap-3.5 pt-0.5">
                     {/* Google */}
                     <button
                       type="button"
                       onClick={() => handleSocialClick('google')}
                       aria-label="Login with Google"
-                      className="w-11 h-11 rounded-full bg-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex items-center justify-center border border-slate-100 cursor-pointer"
+                      className="w-10 h-10 rounded-full bg-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex items-center justify-center border border-slate-100 cursor-pointer"
                     >
-                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path
                           fill="#4285F4"
                           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -474,9 +635,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       type="button"
                       onClick={() => handleSocialClick('apple')}
                       aria-label="Login with Apple"
-                      className="w-11 h-11 rounded-full bg-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex items-center justify-center border border-slate-100 cursor-pointer"
+                      className="w-10 h-10 rounded-full bg-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex items-center justify-center border border-slate-100 cursor-pointer"
                     >
-                      <svg className="w-4.5 h-4.5 fill-slate-900" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 fill-slate-900" viewBox="0 0 24 24">
                         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 0.92-2.87-.9.04-1.99.6-2.63 1.35-.58.67-1.08 1.74-.95 2.78 1.01.08 2.05-.51 2.66-1.26z" />
                       </svg>
                     </button>
@@ -486,9 +647,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       type="button"
                       onClick={() => handleSocialClick('facebook')}
                       aria-label="Login with Facebook"
-                      className="w-11 h-11 rounded-full bg-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex items-center justify-center border border-slate-100 cursor-pointer"
+                      className="w-10 h-10 rounded-full bg-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex items-center justify-center border border-slate-100 cursor-pointer"
                     >
-                      <svg className="w-4.5 h-4.5 fill-[#1877F2]" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 fill-[#1877F2]" viewBox="0 0 24 24">
                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                       </svg>
                     </button>
@@ -500,10 +661,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     Don’t have an account?{' '}
                     <button
                       type="button"
-                      onClick={() => {
-                        triggerSound('pop');
-                        showToast('Sign up form would open next in this flow!');
-                      }}
+                      onClick={() => switchAuthMode('signup')}
                       className={`font-bold transition-colors cursor-pointer ${
                         isGirl ? 'text-[#7C3AED] hover:text-[#6D28D9]' : 'text-[#2563EB] hover:text-[#1D4ED8]'
                       }`}
@@ -512,25 +670,310 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     </button>
                   </p>
                 </div>
-              </form>
+              </motion.form>
+            ) : (
+              /* ========================================================
+                  SIGN UP FORM
+                 ======================================================== */
+              <motion.form
+                key="signup-form"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.25 }}
+                onSubmit={handleSignupSubmit}
+                className="space-y-2.5"
+              >
+                {/* Full Name Input */}
+                <div>
+                  <div
+                    className={`relative flex items-center bg-[#F1F3F5] rounded-full p-1 transition-all focus-within:ring-2 ${
+                      isGirl
+                        ? 'focus-within:ring-purple-400 focus-within:bg-white focus-within:shadow-md'
+                        : 'focus-within:ring-blue-400 focus-within:bg-white focus-within:shadow-md'
+                    } ${signupErrors.name ? 'ring-2 ring-rose-400' : ''}`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
+                        isGirl
+                          ? 'bg-gradient-to-br from-purple-500 to-purple-700'
+                          : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                      }`}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+
+                    <input
+                      type="text"
+                      value={signupName}
+                      onChange={(e) => {
+                        setSignupName(e.target.value);
+                        if (signupErrors.name)
+                          setSignupErrors((prev) => ({ ...prev, name: undefined }));
+                      }}
+                      placeholder="Your Name or Nickname"
+                      className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
+                    />
+                  </div>
+                  {signupErrors.name && (
+                    <p className="text-[11px] text-rose-500 mt-0.5 ml-4 font-medium flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{signupErrors.name}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Email or Username Input */}
+                <div>
+                  <div
+                    className={`relative flex items-center bg-[#F1F3F5] rounded-full p-1 transition-all focus-within:ring-2 ${
+                      isGirl
+                        ? 'focus-within:ring-purple-400 focus-within:bg-white focus-within:shadow-md'
+                        : 'focus-within:ring-blue-400 focus-within:bg-white focus-within:shadow-md'
+                    } ${signupErrors.email ? 'ring-2 ring-rose-400' : ''}`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
+                        isGirl
+                          ? 'bg-gradient-to-br from-purple-500 to-purple-700'
+                          : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                      }`}
+                    >
+                      <Mail className="w-4 h-4" />
+                    </div>
+
+                    <input
+                      type="text"
+                      value={signupEmail}
+                      onChange={(e) => {
+                        setSignupEmail(e.target.value);
+                        if (signupErrors.email)
+                          setSignupErrors((prev) => ({ ...prev, email: undefined }));
+                      }}
+                      placeholder="Email address"
+                      className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
+                    />
+                  </div>
+                  {signupErrors.email && (
+                    <p className="text-[11px] text-rose-500 mt-0.5 ml-4 font-medium flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{signupErrors.email}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Password Input */}
+                <div>
+                  <div
+                    className={`relative flex items-center bg-[#F1F3F5] rounded-full p-1 transition-all focus-within:ring-2 ${
+                      isGirl
+                        ? 'focus-within:ring-purple-400 focus-within:bg-white focus-within:shadow-md'
+                        : 'focus-within:ring-blue-400 focus-within:bg-white focus-within:shadow-md'
+                    } ${signupErrors.password ? 'ring-2 ring-rose-400' : ''}`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
+                        isGirl
+                          ? 'bg-gradient-to-br from-purple-500 to-purple-700'
+                          : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                      }`}
+                    >
+                      <Lock className="w-4 h-4" />
+                    </div>
+
+                    <input
+                      type={showSignupPassword ? 'text' : 'password'}
+                      value={signupPassword}
+                      onChange={(e) => {
+                        setSignupPassword(e.target.value);
+                        if (signupErrors.password)
+                          setSignupErrors((prev) => ({ ...prev, password: undefined }));
+                      }}
+                      placeholder="Create Password"
+                      className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerSound('pop');
+                        setShowSignupPassword(!showSignupPassword);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors mr-1 cursor-pointer"
+                      aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {signupErrors.password && (
+                    <p className="text-[11px] text-rose-500 mt-0.5 ml-4 font-medium flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{signupErrors.password}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password Input */}
+                <div>
+                  <div
+                    className={`relative flex items-center bg-[#F1F3F5] rounded-full p-1 transition-all focus-within:ring-2 ${
+                      isGirl
+                        ? 'focus-within:ring-purple-400 focus-within:bg-white focus-within:shadow-md'
+                        : 'focus-within:ring-blue-400 focus-within:bg-white focus-within:shadow-md'
+                    } ${signupErrors.confirmPassword ? 'ring-2 ring-rose-400' : ''}`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
+                        isGirl
+                          ? 'bg-gradient-to-br from-purple-500 to-purple-700'
+                          : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+
+                    <input
+                      type={showSignupConfirmPassword ? 'text' : 'password'}
+                      value={signupConfirmPassword}
+                      onChange={(e) => {
+                        setSignupConfirmPassword(e.target.value);
+                        if (signupErrors.confirmPassword)
+                          setSignupErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                      }}
+                      placeholder="Confirm Password"
+                      className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerSound('pop');
+                        setShowSignupConfirmPassword(!showSignupConfirmPassword);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors mr-1 cursor-pointer"
+                      aria-label={showSignupConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSignupConfirmPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {signupErrors.confirmPassword && (
+                    <p className="text-[11px] text-rose-500 mt-0.5 ml-4 font-medium flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{signupErrors.confirmPassword}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* 3D Push Button with Claymorphic Loading Spinner Overlay */}
+                <div className="relative pt-1">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    onMouseDown={() => triggerSound('push')}
+                    className={`w-full py-3 px-6 rounded-full text-white font-bold text-sm sm:text-base tracking-wide flex items-center justify-center gap-2 cursor-pointer transition-all duration-100 ${
+                      isGirl
+                        ? 'bg-[#8B5CF6] hover:bg-[#7C3AED] shadow-[0_5px_0_#6D28D9] active:translate-y-1 active:shadow-none'
+                        : 'bg-[#3B82F6] hover:bg-[#2563EB] shadow-[0_5px_0_#1D4ED8] active:translate-y-1 active:shadow-none'
+                    } ${isLoading ? 'opacity-90 cursor-wait' : ''}`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <span>Create Account</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </button>
+
+                  {/* CUSTOM CLAYMORPHIC LOADING SPINNER OVERLAY:
+                      Appears directly over the button while account creation is in progress. */}
+                  <AnimatePresence>
+                    {isLoading && (
+                      <motion.div
+                        initial={{ scale: 0.9, opacity: 0, y: 2 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: -2 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                        className="absolute inset-0 z-30 flex items-center justify-center rounded-full pointer-events-none"
+                      >
+                        <div
+                          className={`w-full h-full flex items-center justify-center gap-3 px-4 rounded-full backdrop-blur-md shadow-xl ${
+                            isGirl
+                              ? 'bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-600 border border-purple-200/50'
+                              : 'bg-gradient-to-r from-blue-600 via-blue-700 to-sky-600 border border-blue-200/50'
+                          }`}
+                          style={{
+                            boxShadow: isGirl
+                              ? 'inset 2px 2px 4px rgba(255,255,255,0.7), inset -2px -2px 4px rgba(0,0,0,0.25), 0 6px 16px rgba(109,40,217,0.4)'
+                              : 'inset 2px 2px 4px rgba(255,255,255,0.7), inset -2px -2px 4px rgba(0,0,0,0.25), 0 6px 16px rgba(29,78,216,0.4)',
+                          }}
+                        >
+                          <ClaymorphicSpinner size="md" variant="light" />
+                          <div className="flex flex-col text-left">
+                            <span className="text-xs sm:text-sm font-extrabold text-white tracking-wide leading-tight drop-shadow-xs">
+                              Creating Account...
+                            </span>
+                            <span className="text-[10px] text-white/80 font-medium">
+                              {isGirl ? 'Preparing Mimi’s World 🐱' : 'Preparing Buddy’s World 🐶'}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <div className="pt-2 text-center">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('login')}
+                      className={`font-bold transition-colors cursor-pointer ${
+                        isGirl ? 'text-[#7C3AED] hover:text-[#6D28D9]' : 'text-[#2563EB] hover:text-[#1D4ED8]'
+                      }`}
+                    >
+                      Log In
+                    </button>
+                  </p>
+                </div>
+              </motion.form>
             )}
           </AnimatePresence>
         </motion.div>
 
         {/* Demo Helper Pill */}
-        <div className="mt-3 text-center">
-          <button
-            onClick={() => {
-              triggerSound('pop');
-              setIdentity(isGirl ? 'luna.kitten@example.com' : 'leo.doggo@example.com');
-              setPassword('adventure123');
-              showToast('Filled in demo credentials!');
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 hover:bg-white text-slate-600 text-xs font-semibold shadow-sm transition-all border border-white/60 cursor-pointer"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-            <span>Use Demo {isGirl ? 'Girl' : 'Boy'} Account</span>
-          </button>
+        <div className="mt-3 text-center flex items-center justify-center gap-2">
+          {authMode === 'login' ? (
+            <button
+              onClick={() => {
+                triggerSound('pop');
+                setLoginIdentity(isGirl ? 'luna.kitten@example.com' : 'leo.doggo@example.com');
+                setLoginPassword('adventure123');
+                showToast('Filled in demo credentials!');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white text-slate-600 text-xs font-semibold shadow-sm transition-all border border-white/60 cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+              <span>Use Demo {isGirl ? 'Girl' : 'Boy'} Account</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                triggerSound('pop');
+                setSignupName(isGirl ? 'Emma & Mimi' : 'Noah & Buddy');
+                setSignupEmail(isGirl ? 'emma.cozy@example.com' : 'noah.gamer@example.com');
+                setSignupPassword('wonder123');
+                setSignupConfirmPassword('wonder123');
+                showToast('Filled sample sign up info!');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white text-slate-600 text-xs font-semibold shadow-sm transition-all border border-white/60 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Quick Fill Sign Up Demo</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -551,7 +994,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <input
                 type="text"
                 placeholder="Enter email or username"
-                defaultValue={identity}
+                defaultValue={loginIdentity}
                 className="w-full mt-3 px-4 py-2.5 bg-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
               <div className="flex gap-2 mt-4">

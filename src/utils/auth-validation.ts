@@ -83,6 +83,30 @@ export function validatePassword(password: string): { valid: boolean; error?: st
   return { valid: true };
 }
 
+export function validateName(name: string): { valid: boolean; error?: string } {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { valid: false, error: 'Please enter your name' };
+  }
+  if (trimmed.length < 2) {
+    return { valid: false, error: 'Name must be at least 2 characters' };
+  }
+  return { valid: true };
+}
+
+export function validateConfirmPassword(
+  password: string,
+  confirmPassword: string
+): { valid: boolean; error?: string } {
+  if (!confirmPassword) {
+    return { valid: false, error: 'Please confirm your password' };
+  }
+  if (password !== confirmPassword) {
+    return { valid: false, error: 'Passwords do not match' };
+  }
+  return { valid: true };
+}
+
 export function formatSocialProviderName(provider: 'google' | 'apple' | 'facebook'): string {
   switch (provider) {
     case 'google':
@@ -93,3 +117,4 @@ export function formatSocialProviderName(provider: 'google' | 'apple' | 'faceboo
       return 'Facebook';
   }
 }
+

@@ -4,6 +4,8 @@ import {
   getThemeConfig,
   validateUsernameOrEmail,
   validatePassword,
+  validateName,
+  validateConfirmPassword,
   formatSocialProviderName,
 } from './auth-validation';
 
@@ -45,8 +47,21 @@ test('password validation enforces length requirement', () => {
   assert.equal(validatePassword('supersecret').valid, true);
 });
 
+test('name validation enforces minimum length', () => {
+  assert.equal(validateName('').valid, false);
+  assert.equal(validateName('a').valid, false);
+  assert.equal(validateName('Luna').valid, true);
+});
+
+test('confirm password validation checks matching passwords', () => {
+  assert.equal(validateConfirmPassword('pass123', '').valid, false);
+  assert.equal(validateConfirmPassword('pass123', 'different').valid, false);
+  assert.equal(validateConfirmPassword('pass123', 'pass123').valid, true);
+});
+
 test('social provider name formatting', () => {
   assert.equal(formatSocialProviderName('google'), 'Google');
   assert.equal(formatSocialProviderName('apple'), 'Apple');
   assert.equal(formatSocialProviderName('facebook'), 'Facebook');
 });
+

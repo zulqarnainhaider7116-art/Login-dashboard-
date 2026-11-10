@@ -10,7 +10,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Welcome />} />
-          <Route path="/login" element={<LoginScreen />} />
+          <Route path="/login" element={<LoginScreen defaultMode="login" />} />
+          <Route path="/signup" element={<LoginScreen defaultMode="signup" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
