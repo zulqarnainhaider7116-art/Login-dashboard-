@@ -1,0 +1,6 @@
+{
+  "name": "Kids 3D Character Auth & Welcome",
+  "description": "Delightful 3D claymorphic welcome and login experience featuring animated Boy & Dog and Girl & Cat themes, interactive pill inputs, and tactile 3D buttons.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+}
+
+/* Custom 3D Button Shadows & Neumorphic Clay Touches */
+.shadow-3d-purple {
+  box-shadow: 0 6px 0 0 #7e57c2, 0 12px 20px -3px rgba(126, 87, 194, 0.4);
+}
+.shadow-3d-purple:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 0 #7e57c2, 0 6px 10px -2px rgba(126, 87, 194, 0.3);
+}
+
+.shadow-3d-blue {
+  box-shadow: 0 6px 0 0 #1d4ed8, 0 12px 20px -3px rgba(29, 78, 216, 0.4);
+}
+.shadow-3d-blue:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 0 #1d4ed8, 0 6px 10px -2px rgba(29, 78, 216, 0.3);
+}
+
+.shadow-clay-card {
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.15), 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+}
+
+.shadow-clay-inset {
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+}
+
+.shadow-clay-icon {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
